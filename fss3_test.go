@@ -16,7 +16,7 @@ var (
 		Endpoint:        os.Getenv("ENDPOINT"),
 		BucketName:      os.Getenv("BUCKET_NAME"),
 		Region:          os.Getenv("REGION"),
-		DirFileName:     "_",
+		DirFileName:     os.Getenv("DIR_FILE_NAME"),
 		UseSSL:          true,
 	}
 	fss3 *FSS3 = nil
