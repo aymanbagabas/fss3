@@ -10,8 +10,12 @@ import (
 )
 
 func sanitizeName(name string) string {
+	name = strings.ReplaceAll(name, dirFileName, ".")
 	name = strings.Trim(name, "/")
 	name = filepath.Clean(name)
+	if name == "." {
+		return dirFileName
+	}
 	return name
 }
 

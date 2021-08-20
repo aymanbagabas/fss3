@@ -19,6 +19,8 @@ type listObjectsOptions = minio.ListObjectsOptions
 type removeObjectOptions = minio.RemoveObjectOptions
 type removeObjectsOptions = minio.RemoveObjectsOptions
 
+var dirFileName = "."
+
 type FSS3 struct {
 	client *minio.Client
 	cfg    *Config
@@ -35,6 +37,7 @@ func NewFSS3(cfg Config) (*FSS3, error) {
 	if cfg.DirFileName == "" {
 		cfg.DirFileName = "."
 	}
+	dirFileName = cfg.DirFileName
 	fss3 := FSS3{
 		client: client,
 		cfg:    &cfg,
