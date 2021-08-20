@@ -3,6 +3,7 @@ package fss3
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"path/filepath"
@@ -157,9 +158,7 @@ func (fss3 *FSS3) RemoveAll(path string) error {
 	return nil
 }
 
-// WriteFile writes data to an object and creates any necessary parent.
-// It creates the file if it doesn't exist.
-func (fss3 *FSS3) WriteFile(name string, data []byte, perm fs.FileMode) error {
+func (fss3 *FSS3) writeFrom(name string, r io.Reader, size int64, perm fs.FileMode) error {
 	name = sanitizeName(name)
 	parent := sanitizeName(filepath.Dir(name))
 	err := fss3.MkdirAll(parent, fs.ModePerm)
@@ -173,10 +172,21 @@ func (fss3 *FSS3) WriteFile(name string, data []byte, perm fs.FileMode) error {
 		},
 		ContentType: guessContentType(name),
 	}
-	_, err = fss3.putObject(name, bytes.NewReader(data), int64(len(data)), &opts)
+	_, err = fss3.putObject(name, r, size, &opts)
 	if err != nil {
 		return minioErrToPathErr(err)
 	}
 
 	return nil
+}
+
+// WriteFile writes data to an object and creates any necessary parent.
+// It creates the file if it doesn't exist.
+func (fss3 *FSS3) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	return fss3.writeFrom(name, bytes.NewReader(data), int64(len(data)), perm)
+}
+
+// WriteFrom writes the contents of reader to an object.
+func (fss3 *FSS3) WriteFrom(name string, r io.Reader, perm fs.FileMode) error {
+	return fss3.writeFrom(name, r, -1, perm)
 }
