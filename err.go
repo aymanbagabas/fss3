@@ -5,10 +5,10 @@ import (
 	"fmt"
 )
 
-// ErrNotFound is returned when a file info is not found.
+// ErrNoFileInfo is returned when a file info is not found.
 var ErrNoFileInfo = errors.New("fileInfo not found")
 
-// ErrInvalidPath is returned when an invalid path is provided.
+// ErrInvalidHeader is returned when an invalid path is provided.
 type ErrInvalidHeader struct {
 	name  string
 	value string

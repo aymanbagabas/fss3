@@ -91,6 +91,7 @@ func (fss3 *FSS3) Open(name string) (*File, error) {
 	return &file, nil
 }
 
+// Stat returns a fs.FileInfo describing the named object.
 func (fss3 *FSS3) Stat(name string) (fs.FileInfo, error) {
 	ff, err := fss3.Open(name)
 	if err != nil {
@@ -104,6 +105,7 @@ func (fss3 *FSS3) Stat(name string) (fs.FileInfo, error) {
 	return stat, nil
 }
 
+// ReadFile reads data for an object.
 func (fss3 *FSS3) ReadFile(name string) ([]byte, error) {
 	ff, err := fss3.Open(name)
 	if err != nil {
@@ -117,6 +119,7 @@ func (fss3 *FSS3) ReadFile(name string) ([]byte, error) {
 	return data, nil
 }
 
+// ReadDir returns a directory listing.
 func (fss3 *FSS3) ReadDir(name string) ([]fs.DirEntry, error) {
 	ff, err := fss3.Open(name)
 	if err != nil {
