@@ -7,18 +7,21 @@ import (
 	"time"
 )
 
+// FileInfo implements fs.FileInfo.
 type FileInfo struct {
 	info    *objectInfo
 	size    int64
 	modTime time.Time
 }
 
+// File implements fs.File.
 type File struct {
-	fs       *FSS3
+	fs       *FS
 	obj      *object
 	fileInfo *FileInfo
 }
 
+// DirEntry implements fs.DirEntry.
 type DirEntry struct {
 	info *FileInfo
 }
@@ -117,15 +120,15 @@ func (f *File) ReadDir(n int) ([]fs.DirEntry, error) {
 
 	stat := fStat.(*FileInfo)
 	dirKey := stat.info.Key
-	if stat.IsDir() && (len(dirKey) > len(f.fs.cfg.DirFileName) && !strings.HasSuffix(dirKey, "/"+f.fs.cfg.DirFileName)) && dirKey != f.fs.cfg.DirFileName {
+	if stat.IsDir() && (len(dirKey) > len(f.fs.fss3.cfg.DirFileName) && !strings.HasSuffix(dirKey, "/"+f.fs.fss3.cfg.DirFileName)) && dirKey != f.fs.fss3.cfg.DirFileName {
 		return nil, ErrNotDirectory{name: fStat.Name()}
 	}
 
 	var prefix string
-	if dirKey == f.fs.cfg.DirFileName {
+	if dirKey == f.fs.fss3.cfg.DirFileName {
 		prefix = ""
 	} else {
-		prefix = dirKey[:len(dirKey)-len(f.fs.cfg.DirFileName)]
+		prefix = dirKey[:len(dirKey)-len(f.fs.fss3.cfg.DirFileName)]
 	}
 
 	opts := listObjectsOptions{
@@ -135,7 +138,7 @@ func (f *File) ReadDir(n int) ([]fs.DirEntry, error) {
 	}
 
 	counter := 0
-	for objInfo := range f.fs.listObjects(&opts) {
+	for objInfo := range f.fs.fss3.listObjects(&opts) {
 		if n > 0 && counter >= n {
 			break
 		}
@@ -143,7 +146,7 @@ func (f *File) ReadDir(n int) ([]fs.DirEntry, error) {
 			return ents, objInfo.Err
 		}
 		// Skip the current directory
-		if strings.HasSuffix(objInfo.Key, f.fs.cfg.DirFileName) {
+		if strings.HasSuffix(objInfo.Key, f.fs.fss3.cfg.DirFileName) {
 			continue
 		}
 
@@ -152,7 +155,7 @@ func (f *File) ReadDir(n int) ([]fs.DirEntry, error) {
 		fi := FileInfo{info: &oi}
 		// If directory, set directory key
 		if strings.HasSuffix(oi.Key, "/") {
-			key += f.fs.cfg.DirFileName
+			key += f.fs.fss3.cfg.DirFileName
 		}
 		// AWS S3 API doesn't return Metadata on listObjects
 		// We have to fetch the stats to get the metadata

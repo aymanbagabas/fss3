@@ -3,6 +3,7 @@ package fss3
 import (
 	"context"
 	"io"
+	"io/fs"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -21,13 +22,14 @@ type removeObjectsOptions = minio.RemoveObjectsOptions
 
 var dirFileName = "."
 
+// FSS3 represents an opened bucket.
 type FSS3 struct {
 	client *minio.Client
 	cfg    *Config
 }
 
-// NewFSS3 creates a new FSS3 object
-func NewFSS3(cfg Config) (*FSS3, error) {
+// New creates a new FSS3 object
+func New(cfg Config) (*FSS3, error) {
 	creds := credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, "")
 	client, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  creds,
@@ -43,6 +45,11 @@ func NewFSS3(cfg Config) (*FSS3, error) {
 		cfg:    &cfg,
 	}
 	return &fss3, err
+}
+
+// FS returns a fs.FS from the FSS3 object
+func (fss3 *FSS3) FS() fs.FS {
+	return &FS{fss3}
 }
 
 // listObjects lists all objects at the given prefix

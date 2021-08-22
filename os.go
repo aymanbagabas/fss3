@@ -5,10 +5,126 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"log"
 	"path/filepath"
 	"strings"
 )
+
+// Open opens a S3 object using the given name.
+func (fss3 *FSS3) Open(name string) (*File, error) {
+	name = sanitizeName(name)
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{
+			Op:   "open",
+			Path: name,
+			Err:  fs.ErrInvalid,
+		}
+	}
+
+	// Set the initial isDir to the root directory key
+	isDir := name == fss3.cfg.DirFileName
+	stat, err := fss3.statObject(name, nil)
+	if err != nil {
+		// Check if the requested path is a directory
+		rspErr := errToRspErr(err)
+		if rspErr.Code == "NoSuchKey" {
+			isDir = true
+			// Check if name is the root path
+			if name != fss3.cfg.DirFileName {
+				name = name + "/" + fss3.cfg.DirFileName
+			}
+			dirStat, dirErr := fss3.statObject(name, nil)
+			if dirErr != nil {
+				return nil, minioErrToPathErr(err)
+			}
+			stat = dirStat
+		} else {
+			return nil, minioErrToPathErr(err)
+		}
+	}
+
+	obj, err := fss3.getObject(name, nil)
+	if err != nil {
+		return nil, minioErrToPathErr(err)
+	}
+
+	fileInfo := FileInfo{
+		info:    stat,
+		size:    stat.Size,
+		modTime: stat.LastModified,
+	}
+	// If directory, get the last modified time and calculate the size
+	if isDir && strings.HasSuffix(name, fss3.cfg.DirFileName) {
+		var prefix string
+		if name == fss3.cfg.DirFileName {
+			prefix = ""
+		} else {
+			prefix = name[:len(name)-len(fss3.cfg.DirFileName)]
+		}
+		opts := listObjectsOptions{
+			Recursive:    true,
+			Prefix:       prefix,
+			WithMetadata: true,
+		}
+		for obj := range fss3.listObjects(&opts) {
+			if obj.Err != nil {
+				log.Printf("warning: %s", obj.Err)
+				continue
+			}
+			fileInfo.size += obj.Size
+			if obj.LastModified.After(fileInfo.modTime) {
+				fileInfo.modTime = obj.LastModified
+			}
+		}
+	}
+
+	f := FS{
+		fss3: fss3,
+	}
+	file := File{
+		fs:       &f,
+		obj:      obj,
+		fileInfo: &fileInfo,
+	}
+
+	return &file, nil
+}
+
+func (fss3 *FSS3) Stat(name string) (fs.FileInfo, error) {
+	ff, err := fss3.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer ff.Close()
+	stat, err := ff.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return stat, nil
+}
+
+func (fss3 *FSS3) ReadFile(name string) ([]byte, error) {
+	ff, err := fss3.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer ff.Close()
+	data, err := ioutil.ReadAll(ff)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (fss3 *FSS3) ReadDir(name string) ([]fs.DirEntry, error) {
+	ff, err := fss3.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer ff.Close()
+	return ff.ReadDir(0)
+}
 
 // Create creates or truncates the named object.
 // The object is created with mode 0666 (before umask).
@@ -37,8 +153,7 @@ func (fss3 *FSS3) Create(name string) (*File, error) {
 		return nil, err
 	}
 
-	file := f.(*File)
-	return file, nil
+	return f, nil
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
@@ -189,4 +304,10 @@ func (fss3 *FSS3) WriteFile(name string, data []byte, perm fs.FileMode) error {
 // WriteFrom writes the contents of reader to an object.
 func (fss3 *FSS3) WriteFrom(name string, r io.Reader, perm fs.FileMode) error {
 	return fss3.writeFrom(name, r, -1, perm)
+}
+
+// WalkDir walks the file tree rooted at root, calling walkFn for each file or
+// directory in the tree, including root.
+func (fss3 *FSS3) WalkDir(root string, fn fs.WalkDirFunc) error {
+	return fs.WalkDir(fss3.FS(), root, fn)
 }

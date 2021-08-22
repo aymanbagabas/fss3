@@ -23,7 +23,7 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	s3, err := NewFSS3(cfg)
+	s3, err := New(cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -131,9 +131,7 @@ func TestFileOpenWrite(t *testing.T) {
 		t.Errorf("open error: %s", err)
 	}
 	defer f.Close()
-	ff := f.(*File)
-	defer ff.Close()
-	ff.WriteString("hello go")
+	f.WriteString("hello go")
 }
 
 func TestWriteTo(t *testing.T) {
@@ -142,15 +140,13 @@ func TestWriteTo(t *testing.T) {
 		t.Errorf("open error: %s", err)
 	}
 	defer f.Close()
-	ff := f.(*File)
-	defer ff.Close()
 	out, err := os.Create("out")
 	if err != nil {
 		t.Errorf("create error: %s", err)
 	}
 	defer out.Close()
 	defer os.Remove("out")
-	n, err := ff.WriteTo(out)
+	n, err := f.WriteTo(out)
 	if err != nil {
 		t.Errorf("write to error: %s", err)
 	}
@@ -189,7 +185,7 @@ func TestReadDir(t *testing.T) {
 func TestWalkDir(t *testing.T) {
 	root := fss3.cfg.DirFileName
 	expect := []string{root, "testfile", "a", "a/file", "a/b", "a/b/c", "a/b/c"}
-	fs.WalkDir(fss3, root, func(path string, info fs.DirEntry, err error) error {
+	fs.WalkDir(fss3.FS(), root, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

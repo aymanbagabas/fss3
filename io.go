@@ -9,7 +9,7 @@ import (
 // Write writes len(p) bytes from p to the object at key.
 func (f *File) Write(p []byte) (int, error) {
 	buf := bytes.NewBuffer(p)
-	ui, err := f.fs.putObject(f.fileInfo.info.Key, buf, int64(buf.Len()), nil)
+	ui, err := f.fs.fss3.putObject(f.fileInfo.info.Key, buf, int64(buf.Len()), nil)
 	if err != nil {
 		return 0, err
 	}
