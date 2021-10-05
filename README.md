@@ -33,7 +33,7 @@ func main() {
 		DirFileName:     "_", // special directory file name that stores directory metadata
 		Umask:           0, // Don't set umask
 	}
-	s3, err := fss3.NewFSS3(cfg)
+	s3, err := fss3.New(cfg)
 	if err != nil {
 		panic(err)
 	}
