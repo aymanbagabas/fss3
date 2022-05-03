@@ -6,8 +6,23 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    env:
+      ACCESS_KEY_ID: minioadmin
+      SECRET_ACCESS_KEY: minioadmin
+      ENDPOINT: 127.0.0.1:9000
+      BUCKET_NAME: testbucket
+    services:
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: ${{ env.ACCESS_KEY_ID }}
+          MINIO_ROOT_PASSWORD: ${{ env.SECRET_ACCESS_KEY }}
+          MINIO_DEFAULT_BUCKETS: ${{ env.BUCKET_NAME }}
+        ports:
+          - 9000:9000
+        options: --name minio-server
 
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
@@ -18,12 +33,18 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+    
+    - name: Create Bucket
+      env:
+        AWS_ACCESS_KEY_ID: ${{ env.ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ env.SECRET_ACCESS_KEY }}
+      run: aws --endpoint-url http://${{ env.ENDPOINT }}/ s3 mb s3://${{ env.BUCKET_NAME }}
 
     - name: Test
       env:
-        ACCESS_KEY_ID: Q3AM3UQ867SPQQA43P2F
-        SECRET_ACCESS_KEY: zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG 
-        ENDPOINT: play.min.io
-        BUCKET_NAME: testbucket
+        ACCESS_KEY_ID: ${{ env.ACCESS_KEY_ID }}
+        SECRET_ACCESS_KEY: ${{ env.SECRET_ACCESS_KEY }}
+        ENDPOINT: ${{ env.ENDPOINT }}
+        BUCKET_NAME: ${{ env.BUCKET_NAME }}
         DIR_FILE_NAME: "_" # MinIO stores files in a filesystem so "." is not allowed
       run: go test -v ./...

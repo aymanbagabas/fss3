@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
@@ -17,17 +18,19 @@ var (
 		BucketName:      os.Getenv("BUCKET_NAME"),
 		Region:          os.Getenv("REGION"),
 		DirFileName:     os.Getenv("DIR_FILE_NAME"),
-		UseSSL:          true,
+		UseSSL:          false,
 	}
 	fss3 *FSS3 = nil
 )
 
-func TestNew(t *testing.T) {
+func TestMain(m *testing.M) {
 	s3, err := New(cfg)
 	if err != nil {
-		t.Error(err)
+		panic(err)
 	}
 	fss3 = s3
+	code := m.Run()
+	os.Exit(code)
 }
 
 func TestCreate(t *testing.T) {
@@ -168,7 +171,20 @@ func TestWriteTo(t *testing.T) {
 }
 
 func TestReadDir(t *testing.T) {
-	f, err := fss3.ReadDir("a")
+	err := fss3.Mkdir("one", 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fss3.RemoveAll("one")
+	_, err = fss3.Create("one/file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = fss3.Create("one/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := fss3.ReadDir("one")
 	if err != nil {
 		t.Errorf("read dir error, %s", err)
 	}
@@ -184,7 +200,29 @@ func TestReadDir(t *testing.T) {
 
 func TestWalkDir(t *testing.T) {
 	root := fss3.cfg.DirFileName
-	expect := []string{root, "testfile", "a", "a/file", "a/b", "a/b/c", "a/b/c"}
+	_, err := fss3.Create("testfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = fss3.MkdirAll("a/b/c", 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = fss3.Create("a/file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fss3.RemoveAll("a")
+	defer fss3.Remove("testfile")
+	expect := []string{
+		root,
+		path.Join(root, "testfile"),
+		path.Join(root, "a"),
+		path.Join(root, "a/file"),
+		path.Join(root, "a/b"),
+		path.Join(root, "a/b/c"),
+		path.Join(root, "a/b/c"),
+	}
 	fs.WalkDir(fss3.FS(), root, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -197,7 +235,11 @@ func TestWalkDir(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	err := fss3.Remove("a/file")
+	_, err := fss3.Create("a/file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = fss3.Remove("a/file")
 	if err != nil {
 		t.Errorf("remove error: %s", err)
 	}
