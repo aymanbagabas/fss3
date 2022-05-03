@@ -50,7 +50,7 @@ func (fss3 *FSS3) Open(name string) (*File, error) {
 	}
 
 	fileInfo := FileInfo{
-		info:    stat,
+		info:    &stat,
 		size:    stat.Size,
 		modTime: stat.LastModified,
 	}
@@ -313,4 +313,27 @@ func (fss3 *FSS3) WriteFrom(name string, r io.Reader, perm fs.FileMode) error {
 // directory in the tree, including root.
 func (fss3 *FSS3) WalkDir(root string, fn fs.WalkDirFunc) error {
 	return fs.WalkDir(fss3.FS(), root, fn)
+}
+
+// Chmod changes the mode of the named file to mode.
+func (fss3 *FSS3) Chmod(name string, mode fs.FileMode) error {
+	name = sanitizeName(name)
+	info, err := fss3.Stat(name)
+	if err != nil {
+		return minioErrToPathErr(err)
+	}
+	if info.Mode() == mode {
+		return nil
+	}
+	dst := copyDestOptions{
+		ReplaceMetadata: true,
+		UserMetadata: map[string]string{
+			"mode": fmt.Sprintf("%o", umask(fss3.cfg.Umask, mode)),
+		},
+	}
+	_, err = fss3.copyObject(name, name, nil, &dst)
+	if err != nil {
+		return minioErrToPathErr(err)
+	}
+	return nil
 }

@@ -260,6 +260,26 @@ func TestRemoveAll(t *testing.T) {
 	}
 }
 
+func TestChmod(t *testing.T) {
+	f, err := fss3.Create("chmod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	defer fss3.Remove("chmod")
+	err = fss3.Chmod("chmod", 0777)
+	if err != nil {
+		t.Fatalf("chmod error: %s", err)
+	}
+	info, err := fss3.Stat("chmod")
+	if err != nil {
+		t.Fatalf("stat error: %s", err)
+	}
+	if info.Mode() != 0777 {
+		t.Fatalf("chmod error, expect 0777, but %o", info.Mode())
+	}
+}
+
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {

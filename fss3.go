@@ -19,6 +19,8 @@ type statObjectOptions = minio.StatObjectOptions
 type listObjectsOptions = minio.ListObjectsOptions
 type removeObjectOptions = minio.RemoveObjectOptions
 type removeObjectsOptions = minio.RemoveObjectsOptions
+type copySrcOptions = minio.CopySrcOptions
+type copyDestOptions = minio.CopyDestOptions
 
 var dirFileName = "."
 
@@ -65,38 +67,26 @@ func (fss3 *FSS3) getObject(key string, opts *getObjectOptions) (*object, error)
 	if opts == nil {
 		opts = &getObjectOptions{}
 	}
-	obj, err := fss3.client.GetObject(context.Background(), fss3.cfg.BucketName, key, *opts)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
+	return fss3.client.GetObject(context.Background(), fss3.cfg.BucketName, key, *opts)
 }
 
 // statObject gets info about the object at the given key
-func (fss3 *FSS3) statObject(key string, opts *statObjectOptions) (*objectInfo, error) {
+func (fss3 *FSS3) statObject(key string, opts *statObjectOptions) (objectInfo, error) {
 	if opts == nil {
 		opts = &statObjectOptions{}
 	}
-	stat, err := fss3.client.StatObject(context.Background(), fss3.cfg.BucketName, key, *opts)
-	if err != nil {
-		return nil, err
-	}
-	return &stat, nil
+	return fss3.client.StatObject(context.Background(), fss3.cfg.BucketName, key, *opts)
 }
 
-// PutObject uploads a file to the given key
-func (fss3 *FSS3) putObject(key string, r io.Reader, size int64, opts *putObjectOptions) (*uploadInfo, error) {
+// putObject uploads a file to the given key
+func (fss3 *FSS3) putObject(key string, r io.Reader, size int64, opts *putObjectOptions) (uploadInfo, error) {
 	if opts == nil {
 		opts = &putObjectOptions{}
 	}
-	ui, err := fss3.client.PutObject(context.Background(), fss3.cfg.BucketName, key, r, size, *opts)
-	if err != nil {
-		return nil, err
-	}
-	return &ui, nil
+	return fss3.client.PutObject(context.Background(), fss3.cfg.BucketName, key, r, size, *opts)
 }
 
-// RemoveObject removes a file for the given key
+// removeObject removes a file for the given key
 func (fss3 *FSS3) removeObject(key string, opts *removeObjectOptions) error {
 	if opts == nil {
 		opts = &removeObjectOptions{}
@@ -104,10 +94,39 @@ func (fss3 *FSS3) removeObject(key string, opts *removeObjectOptions) error {
 	return fss3.client.RemoveObject(context.Background(), fss3.cfg.BucketName, key, *opts)
 }
 
-// RemoveObjects removes multiple files for the given object infos
+// removeObjects removes multiple files for the given object infos
 func (fss3 *FSS3) removeObjects(objsCh <-chan objectInfo, opts *removeObjectsOptions) <-chan removeObjectError {
 	if opts == nil {
 		opts = &removeObjectsOptions{}
 	}
 	return fss3.client.RemoveObjects(context.Background(), fss3.cfg.BucketName, objsCh, *opts)
+}
+
+// copyObject copies a file from src to dst
+func (fss3 *FSS3) copyObject(srcKey, dstKey string, src *copySrcOptions, dst *copyDestOptions) (uploadInfo, error) {
+	if src == nil {
+		src = &copySrcOptions{
+			Bucket: fss3.cfg.BucketName,
+			Object: srcKey,
+		}
+	}
+	if src.Bucket == "" {
+		src.Bucket = fss3.cfg.BucketName
+	}
+	if src.Object == "" {
+		src.Object = srcKey
+	}
+	if dst == nil {
+		dst = &copyDestOptions{
+			Bucket: fss3.cfg.BucketName,
+			Object: dstKey,
+		}
+	}
+	if dst.Bucket == "" {
+		dst.Bucket = fss3.cfg.BucketName
+	}
+	if dst.Object == "" {
+		dst.Object = dstKey
+	}
+	return fss3.client.CopyObject(context.Background(), *dst, *src)
 }
