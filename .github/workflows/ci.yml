@@ -33,12 +33,6 @@ jobs:
 
     - name: Build
       run: go build -v ./...
-    
-    - name: Create Bucket
-      env:
-        AWS_ACCESS_KEY_ID: ${{ env.ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.SECRET_ACCESS_KEY }}
-      run: aws --endpoint-url http://${{ env.ENDPOINT }}/ s3 mb s3://${{ env.BUCKET_NAME }}
 
     - name: Test
       env:
